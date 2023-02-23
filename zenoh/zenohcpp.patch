@@ -1,0 +1,53 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9b5795b..84e9850 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -43,7 +43,7 @@ find_package(zenohc ${CMAKE_PROJECT_VERSION} QUIET)
+ 
+ add_library(zenohcpp INTERFACE)
+ add_dependencies(zenohcpp zenohc::lib)
+-target_include_directories(zenohcpp INTERFACE "${CMAKE_SOURCE_DIR}/include")
++target_include_directories(zenohcpp INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+ 
+ function(add_libraries target)
+ 	target_link_libraries(${target} PUBLIC zenohc::lib)
+@@ -87,7 +87,7 @@ function(add_test_instance file)
+ 	get_filename_component(filename ${file} NAME_WE)
+ 	set(target ${filename})
+ 	add_executable(${target} EXCLUDE_FROM_ALL ${file})
+-	add_dependencies(tests ${target})
++	add_dependencies(zenohcpp_tests ${target})
+ 	target_link_libraries(${target} PUBLIC zenohcpp)
+ 	set_property(TARGET ${target} PROPERTY LANGUAGE CXX)
+ 	set_property(TARGET ${target} PROPERTY CXX_STANDARD 17)
+@@ -105,16 +105,16 @@ endfunction()
+ 
+ if(APPLE OR UNIX OR WIN32)
+ 	enable_testing()
+-	add_custom_target(tests)
+-	add_tests("${CMAKE_SOURCE_DIR}/tests/*.cpp")
++	add_custom_target(zenohcpp_tests)
++	add_tests("${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+ 
+ 	add_custom_target(examples)
+ 	# C examples compiled with C compiler
+-	add_examples("${CMAKE_SOURCE_DIR}/examples/c/*.c" "c" FALSE)
++	add_examples("${CMAKE_CURRENT_SOURCE_DIR}/examples/c/*.c" "c" FALSE)
+ 	# C examples compiled with C++ compiler
+-	add_examples("${CMAKE_SOURCE_DIR}/examples/c/*.c" "c_cpp" TRUE)
++	add_examples("${CMAKE_CURRENT_SOURCE_DIR}/examples/c/*.c" "c_cpp" TRUE)
+ 	# C++ examples compiled with C++ compiler
+-	add_examples("${CMAKE_SOURCE_DIR}/examples/cpp/*.cpp" "cpp" TRUE)
++	add_examples("${CMAKE_CURRENT_SOURCE_DIR}/examples/cpp/*.cpp" "cpp" TRUE)
+ else()
+ 	message(WARNING "You platform doesn't seem to support building the examples or tests.")
+ endif()
+@@ -125,7 +125,7 @@ endif()
+ message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+ include(GNUInstallDirs)
+ set(CMAKE_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/zenohcpp")
+-install(DIRECTORY "${CMAKE_SOURCE_DIR}/include/" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
++install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/zenohcpp.pc.in" "${CMAKE_CURRENT_SOURCE_DIR}/zenohcpp.pc" @ONLY)
+ if(APPLE OR UNIX)
+ 	install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/zenohc.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig" OPTIONAL)

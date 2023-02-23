@@ -1,0 +1,45 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c219937..d5aba09 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -84,12 +84,12 @@ target_include_directories(zenohc INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include
+ 
+ if(APPLE OR UNIX OR WIN32)
+ 	file(GLOB examples_files "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.c")
+-	add_custom_target(examples)
++	add_custom_target(zenohc_examples)
+ 
+ 	foreach(file ${examples_files})
+ 		get_filename_component(target ${file} NAME_WE)
+ 		add_executable(${target} EXCLUDE_FROM_ALL ${file})
+-		add_dependencies(examples ${target})
++		add_dependencies(zenohc_examples ${target})
+ 		add_dependencies(${target} zenohc_static)
+ 		set_property(TARGET ${target} PROPERTY C_STANDARD 11)
+ 		set_property(TARGET ${target} PROPERTY RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples")
+diff --git a/Cargo.lock b/Cargo.lock
+index c425dde..3ff689e 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2378,7 +2378,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "zenoh-c"
+-version = "0.7.0-rc"
++version = "0.7.0-rc.1"
+ dependencies = [
+  "async-std",
+  "async-trait",
+diff --git a/Cargo.toml b/Cargo.toml
+index 3ddfb3f..36e219d 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -13,7 +13,7 @@
+ #
+ [package]
+ name = "zenoh-c"
+-version = "0.7.0-rc"
++version = "0.7.0-rc.1"
+ repository = "https://github.com/eclipse-zenoh/zenoh-c"
+ homepage = "http://zenoh.io"
+ authors = [
