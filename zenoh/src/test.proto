@@ -1,0 +1,9 @@
+syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+
+message Data {
+  int32 id = 1;
+  google.protobuf.Timestamp ts = 2;
+  int64 jitter = 3;
+}
+

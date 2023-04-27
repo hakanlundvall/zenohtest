@@ -1,17 +1,15 @@
 include(FetchContent)
 
-FetchContent_Declare(zenohcpp
+FetchContent_Declare(zenohcxx 
   SYSTEM
-  GIT_REPOSITORY https://github.com/eclipse-zenoh/zenoh-cpp.git
-  GIT_TAG        a08baa4b357061996c00b0b318ed5e014ad84ffa
-  PATCH_COMMAND git restore . && git apply ${CMAKE_CURRENT_LIST_DIR}/zenohcpp.patch
+  GIT_REPOSITORY https://github.com/eclipse-zenoh/zenoh-cpp.git 
+  GIT_TAG c384caccef36253ba13d6fb575b433cab0f1ac59
 )
 
 FetchContent_Declare(zenohc
   SYSTEM
   GIT_REPOSITORY https://github.com/eclipse-zenoh/zenoh-c.git
-  GIT_TAG        8162f13a2a331b72faa745e5e1e56de54e75d10d
-  PATCH_COMMAND git restore . && git apply ${CMAKE_CURRENT_LIST_DIR}/zenohc.patch 
+  GIT_TAG        0766a78a6bdbf29aca44a6436c6ca6b8a481b451
 )
 
 FetchContent_Declare(spdlog
@@ -20,42 +18,80 @@ FetchContent_Declare(spdlog
   GIT_TAG        v1.8.2
 )
 
+FetchContent_Declare(protobuf
+  SYSTEM
+  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+  GIT_TAG        f0dc78d7e6e331b8c6bb2d5283e06aa26883ca7c
+)
+set(protobuf_BUILD_TESTS OFF CACHE INTERNAL "")
+
+FetchContent_MakeAvailable(protobuf)
 FetchContent_MakeAvailable(spdlog)
-FetchContent_MakeAvailable(zenohcpp zenohc)
-FetchContent_GetProperties(zenohc)
+FetchContent_MakeAvailable(zenohc)
+FetchContent_MakeAvailable(zenohcxx)
 
-add_library(myzenohcpp INTERFACE)
-target_include_directories(myzenohcpp SYSTEM INTERFACE ${zenohc_SOURCE_DIR}/include)
+# Generates cpp code for grpc and protobuf from a list of proto files.
+# SRC and HDRS will contain the generated files.
+function(generate_protobuf_cpp SRCS HDRS)
+   if(NOT ARGN)
+      message(SEND_ERROR "Error: generate_protobuf_cpp() called without any proto files")
+      return()
+   endif()
 
+   # Create an include path for each file specified
+   foreach(FIL ${ARGN})
+      get_filename_component(ABS_FIL ${FIL} ABSOLUTE)
+      get_filename_component(ABS_PATH ${ABS_FIL} PATH)
+      list(FIND _protobuf_include_path ${ABS_PATH} _contains_already)
+      if(${_contains_already} EQUAL -1)
+         list(APPEND _protobuf_include_path -I ${ABS_PATH})
+      endif()
+   endforeach()
+   set(${SRCS})
+   set(${HDRS})
 
+   foreach(CURR_PROTO_FILE ${ARGN})
+      get_filename_component(_proto_abs_file ${CURR_PROTO_FILE} ABSOLUTE)
+      get_filename_component(_proto_file_we ${CURR_PROTO_FILE} NAME_WE)
+      get_filename_component(_proto_dir ${CURR_PROTO_FILE} DIRECTORY)
 
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "cortexa53-crypto" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
-  set(libzenohc_target "aarch64-unknown-linux-musl")
-else()
-  set(libzenohc_target "x86_64-unknown-linux-gnu")
-endif()
+      list(APPEND ${SRCS} "${CMAKE_CURRENT_BINARY_DIR}/${_proto_dir}/${_proto_file_we}.pb.cc")
+      list(APPEND ${HDRS} "${CMAKE_CURRENT_BINARY_DIR}/${_proto_dir}/${_proto_file_we}.pb.h")
 
-set(libzenohc_libdir "${zenohc_SOURCE_DIR}/target/${libzenohc_target}/release")
+      add_custom_command(
+         OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${_proto_dir}/${_proto_file_we}.pb.cc"
+                "${CMAKE_CURRENT_BINARY_DIR}/${_proto_dir}/${_proto_file_we}.pb.h"
+         COMMAND $<TARGET_FILE:protoc>
+         ARGS --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+               -I ${CMAKE_CURRENT_SOURCE_DIR}
+               -I ${CMAKE_BINARY_DIR}/_deps/protobuf-src/src/
+         ${_proto_abs_file}
+         DEPENDS ${_proto_abs_file} $<TARGET_FILE:protoc> 
+         COMMENT "Running protocol buffer compiler on ${CURR_PROTO_FILE}"
+         VERBATIM
+      )
+   endforeach()
 
-add_custom_command(
-  OUTPUT ${libzenohc_libdir}/libzenohc.a
-  WORKING_DIRECTORY ${zenohc_SOURCE_DIR}
-  COMMAND  cargo build --release --features=logger-autoinit --target ${libzenohc_target} 
+   set_source_files_properties(${${SRCS}} ${${HDRS}} PROPERTIES GENERATED TRUE)
+   set(${SRCS} ${${SRCS}} PARENT_SCOPE)
+   set(${HDRS} ${${HDRS}} PARENT_SCOPE)
+endfunction()
+
+set(PROTOS
+   src/test.proto
 )
 
-add_custom_target(build_zenohc
-  DEPENDS ${libzenohc_libdir}/libzenohc.a
-)
+generate_protobuf_cpp(PROTO_SRCS PROTO_HDRS ${PROTOS})
 
-target_link_directories(myzenohcpp INTERFACE ${libzenohc_libdir})
-target_link_libraries(myzenohcpp INTERFACE zenohcpp libzenohc.a dl)
-add_dependencies(myzenohcpp build_zenohc)
 add_executable(zenohtest
   main.cpp
+  ${PROTO_SRCS}
+  ${PROTO_HDRS}
 )
 
 set_property(TARGET zenohtest PROPERTY CXX_STANDARD 20)
 set_property(TARGET zenohtest PROPERTY EXPORT_COMPILE_COMMANDS 1)
-target_link_libraries(zenohtest PUBLIC myzenohcpp spdlog)
+target_link_libraries(zenohtest PUBLIC dl zenohcxx::zenohc::static zenohc::static spdlog libprotobuf dl)
+target_include_directories(zenohtest SYSTEM PUBLIC   ${CMAKE_CURRENT_BINARY_DIR})
 
 
